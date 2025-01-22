@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+#own
+
+disrnn_venv/
+
 # Distribution / packaging
 .Python
 build/
