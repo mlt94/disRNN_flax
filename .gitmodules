@@ -1,0 +1,3 @@
+[submodule "disentangled_rnns"]
+	path = disentangled_rnns
+	url = https://github.com/google-deepmind/disentangled_rnns.git
