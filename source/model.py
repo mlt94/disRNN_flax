@@ -3,7 +3,7 @@ from flax.nnx.nn.recurrent import GRUCell
 from flax.nnx.nn.recurrent import RNN
 
 import jax.numpy as jnp
-
+import jax
 
 
 from IPython import embed
@@ -12,12 +12,12 @@ from IPython import embed
 class own_rnn(nnx.Module):
     def __init__(self, input_size:int, hidden_size:int, rngs: nnx.Rngs):
         self.cell = GRUCell(in_features=input_size, hidden_features=hidden_size, rngs=rngs)
-        self.rnn = RNN(self.cell) 
+        self.rnn = RNN(self.cell, time_major=True) #the dataset has dimensions time_steps, sequences, features, so time is the major axis
         self.classify = nnx.Linear(hidden_size, 1, rngs=rngs) #output classes
 
-    def __call__(self, x):
+    def __call__(self, x): 
         x = self.rnn(x)
-        return self.classify(x) 
+        return jax.nn.sigmoid(self.classify(x))
     
 
 
