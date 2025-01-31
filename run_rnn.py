@@ -17,9 +17,9 @@ environment = two_armed_bandits.EnvironmentBanditsDrift(sigma=0.1)
 dataset_train = two_armed_bandits.create_dataset(
     agent,
     environment,
-    n_steps_per_session=50,
-    n_sessions=100,
-    batch_size=100,
+    n_steps_per_session=3,
+    n_sessions=3,
+    batch_size=3,
 )
 
 x, y = next(dataset_train) #return one batch of the data [timestep, episode, feature]
@@ -37,7 +37,8 @@ metrics = nnx.MultiMetric(
   loss=nnx.metrics.Average('loss'),
 )
 
-@nnx.jit
+
+#@nnx.jit
 def train_step(model: own_rnn, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
     grad_fn = nnx.value_and_grad(loss_fn, has_aux=True)
     (loss, probs), grads = grad_fn(model, x, y)
@@ -50,9 +51,10 @@ metrics_history = {
   'train_accuracy': [],
 }
 
-epochs = 100
+epochs = 1
 
 for epoch in range(epochs):
+    
     model.train()
     train_step(model, optimizer, metrics, x, y)
 
