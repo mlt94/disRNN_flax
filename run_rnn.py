@@ -7,7 +7,7 @@ import optax
 import numpy as np
 import matplotlib.pyplot as plt
 
-from source.model import own_rnn
+from source.model import dis_rnn_model
 from IPython import embed
 
 
@@ -21,8 +21,6 @@ dataset_train = two_armed_bandits.create_dataset(
     n_sessions=50,
     batch_size=50,
 )#returns [timestep, episode, feature]
-
-model = own_rnn(2, 5, rngs=nnx.Rngs(0)) 
 
 
 def categorical_log_likelihood(labels, output_logits): 
@@ -38,7 +36,7 @@ def categorical_log_likelihood(labels, output_logits):
     return loss
 
 def penalized_categorical_loss(model, x, y):
-
+    
     model_output = model(x)
     output_logits = model_output[:, :, :-1]
     loss = (
@@ -47,13 +45,17 @@ def penalized_categorical_loss(model, x, y):
     return loss
 
 
+model = dis_rnn_model(rngs=nnx.Rngs(0))
+
 optimizer = nnx.Optimizer(model, optax.adam(1e-3))
+
+
 metrics = nnx.MultiMetric(
   loss=nnx.metrics.Average('loss'),
 )
 
 
-def train_step(model: own_rnn, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
+def train_step(model, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
     grad_fn = nnx.value_and_grad(penalized_categorical_loss)
     loss, grads = grad_fn(model, x, y)
     metrics.update(loss=loss, labels=y)
@@ -63,7 +65,7 @@ metrics_history = {
   'train_loss': []
 }
 
-epochs = 10
+epochs = 1
 x, y = next(dataset_train)
 for epoch in range(epochs):
     model.train()
