@@ -17,50 +17,60 @@ environment = two_armed_bandits.EnvironmentBanditsDrift(sigma=0.1)
 dataset_train = two_armed_bandits.create_dataset(
     agent,
     environment,
-    n_steps_per_session=3,
-    n_sessions=3,
-    batch_size=3,
-)
-
-x, y = next(dataset_train) #return one batch of the data [timestep, episode, feature]
+    n_steps_per_session=500,
+    n_sessions=50,
+    batch_size=50,
+)#returns [timestep, episode, feature]
 
 model = own_rnn(2, 5, rngs=nnx.Rngs(0)) 
 
-def loss_fn(model: own_rnn, x, y):
-    probs = model(x)
-    loss = optax.sigmoid_binary_cross_entropy(probs.reshape(-1, 1), y.reshape(-1)).mean()
-    return loss, probs
 
-optimizer = nnx.Optimizer(model, optax.adam(0.01))
+def categorical_log_likelihood(labels, output_logits): 
+    #mask = jnp.logical_not(labels < 0)
+    log_probs = output_logits 
+    #log_probs = jax.nn.log_softmax(output_logits)
+    one_hot_labels = jax.nn.one_hot(
+        labels[:, :, 0], num_classes=output_logits.shape[-1]
+    )
+    log_liks = one_hot_labels * log_probs
+    #masked_log_liks = jnp.multiply(log_liks, mask)
+    loss = jnp.mean(log_liks)
+    return loss
+
+def penalized_categorical_loss(model, x, y):
+
+    model_output = model(x)
+    output_logits = model_output[:, :, :-1]
+    loss = (
+        categorical_log_likelihood(y, output_logits) 
+    )
+    return loss
+
+
+optimizer = nnx.Optimizer(model, optax.adam(1e-3))
 metrics = nnx.MultiMetric(
-  accuracy=nnx.metrics.Accuracy(),
   loss=nnx.metrics.Average('loss'),
 )
 
 
-#@nnx.jit
 def train_step(model: own_rnn, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
-    grad_fn = nnx.value_and_grad(loss_fn, has_aux=True)
-    (loss, probs), grads = grad_fn(model, x, y)
-    y = y.astype(jnp.int32)    
-    metrics.update(loss=loss, logits=probs, labels=y.squeeze())
+    grad_fn = nnx.value_and_grad(penalized_categorical_loss)
+    loss, grads = grad_fn(model, x, y)
+    metrics.update(loss=loss, labels=y)
     optimizer.update(grads)
 
 metrics_history = {
-  'train_loss': [],
-  'train_accuracy': [],
+  'train_loss': []
 }
 
-epochs = 1
-
+epochs = 10
+x, y = next(dataset_train)
 for epoch in range(epochs):
-    
     model.train()
     train_step(model, optimizer, metrics, x, y)
-
+  
     for metric, value in metrics.compute().items():  
         metrics_history[f'train_{metric}'].append(value.item())  
     metrics.reset() 
 plt.plot(range(epochs), metrics_history["train_loss"])
-plt.ylim([0,1])
 plt.savefig("/home/mlut/disRNN_flax/train_loss.png")

@@ -85,7 +85,7 @@ class GRUCell(RNN):
         # Compute combined transformations for inputs and hidden state
         x_transformed = self.dense_i(inputs)
         h_transformed = self.dense_h(h)
-        embed()
+        print("did this")
         
         # Split the combined transformations into individual components
         xi_r, xi_z, xi_n = jnp.split(x_transformed, 3, axis=-1)
@@ -118,7 +118,7 @@ class GRUCell(RNN):
 class own_rnn(nnx.RNN):
     def __init__(self, din:int, dmid:int, rngs=nnx.Rngs):
         self.cell = GRUCell(in_features=din, hidden_features=dmid, rngs=rngs)
-        self.linear = nnx.Linear(in_features = dmid, out_features=1,  rngs=rngs)
+        self.linear = nnx.Linear(in_features = dmid, out_features=2,  rngs=rngs)
     def __call__(self, x):
         carry = self.cell.initialize_carry((x.shape[:-1]))
         scan_fn = lambda carry, cell, x: cell(carry, x)
