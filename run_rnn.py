@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from source.model import dis_rnn_model
+
+
+
 from IPython import embed
 
 

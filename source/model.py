@@ -2,40 +2,15 @@ from flax import nnx
 import jax
 import jax.numpy as jnp
 
-from flax.nnx.nn import initializers
+
 from flax.nnx.nn.linear import Linear
 from flax.nnx.nn.recurrent import RNN
+from flax.nnx.nn import initializers
 default_kernel_init = initializers.lecun_normal()
 
+from source.mlp import MLP, haiku_adapated_linear
+
 from IPython import embed
-
-class Block(nnx.Module):
-  def __init__(self, input_dim, features, rngs):
-    self.linear = nnx.Linear(input_dim, features, rngs=rngs)
-    
-  def __call__(self, x: jax.Array):  
-    x = self.linear(x)
-    x = jax.nn.relu(x)
-    return x   
-  
-class MLP(nnx.Module):
-  def __init__(self, features, num_layers, rngs):
-    @nnx.split_rngs(splits=num_layers)
-    @nnx.vmap(in_axes=(0,), out_axes=0)
-    def create_block(rngs: nnx.Rngs):
-      return Block(features, features, rngs=rngs)
-
-    self.blocks = create_block(rngs)
-    self.num_layers = num_layers
-
-  def __call__(self, x):
-    @nnx.split_rngs(splits=self.num_layers)
-    @nnx.scan(in_axes=(nnx.Carry, 0), out_axes=nnx.Carry)
-    def forward(x, model):
-      x = model(x)
-      return x
-
-    return forward(x, self.blocks)
 
 def kl_gaussian(mean, var):
     return 0.5 * jnp.sum(-jnp.log(var) - 1.0 + var + jnp.square(mean), axis=-1)
@@ -96,13 +71,35 @@ class dis_rnn_cell(nnx.Module):
         for mlp_i in jnp.arange(self._latent_size): #equivalent to line 136-150
             penalty += kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
             
-            update_mlp_output = MLP(self._update_mlp_shape, rngs=self._rngs)(update_mlp_inputs[:,:,mlp_i])
+            update_mlp_output = MLP(self._update_mlp_shape)(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
+
+            update = haiku_adapated_linear(1,)(update_mlp_output)[:,0]
+
+            w = jax.nn.sigmoid(haiku_adapated_linear(1)(update_mlp_output))[:,0]
+
+            new_latent = w * update + (1 - w) * prev_latents[:, mlp_i] #GRU Cell without reset gate
+            new_latents = new_latents.at[:,mlp_i].set(new_latent) # inplace update in Jax
+
+        noised_up_latents = new_latents + self._latent_sigmas * jax.random.normal(
+            jax.random.key(42), new_latents.shape
+        ) #lines 152-158
+            
+        penalty += kl_gaussian(new_latents, self._latent_sigmas) #line 159
+
+
+        choice_mlp_output = MLP(self._choice_mlp_shape)(noised_up_latents) #166-168
+        y_hat = haiku_adapated_linear(self._target_size)(choice_mlp_output) #170
+
+        penalty = jnp.expand_dims(penalty, 1)
+        output = jnp.concatenate((y_hat, penalty), axis=1)
+        return output, noised_up_latents
+
 
 
 
     def initialize_carry(self, batch_dims):
         mem_shape = (batch_dims, self._latent_size,)
-        h = initializers.zeros(jax.random.key(42), mem_shape)
+        h = initializers.ones_init()(jax.random.key(42), mem_shape) * self._latent_inits
         return h
     
     @property
@@ -112,17 +109,13 @@ class dis_rnn_cell(nnx.Module):
 class dis_rnn_model(nnx.Module):
     def __init__(self, rngs=nnx.Rngs()):
         self.cell = dis_rnn_cell()
-        self.linear = nnx.Linear(in_features = 5, out_features=2, rngs=rngs)
     def __call__(self, x):
         carry = self.cell.initialize_carry((x.shape[1]))
         scan_fn = lambda carry, cell, x: cell(x, carry)
-        carry, y = nnx.scan(
-           scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 1)
+        y, carry = nnx.scan(
+           scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
         )(carry, self.cell, x) 
-        x = self.linear(x)
-        return jax.nn.sigmoid(x)
-
-
+        return y
 
 
 
