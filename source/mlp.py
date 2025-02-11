@@ -8,20 +8,7 @@ from collections.abc import Callable, Iterable
 
 from flax.nnx.nn import initializers
 
-'''
-This is largely the part of the implementation that I am least proud of:
-FLax does not offer an MLP implementation out-of-the-box, and the only examples in the Examples and Guides section
-does not fit for the present case as the dimensions vary from layer to layer.
-I therefore choose to make a small adaption to the Haiku MLP, to make it fit for Flax.
-The reason I am not proud about it is that I fear the implementation is not native to the way Flax should be used.
-The examples use nnx.vmap and nnx.scan as decorators, and I tried to implement this, but as these functions
-have very poor documentation in the Flax landscape, I couldn't make it work. Will update this to be more Flax
-native when stronger documentation and examples arrive
-HAIKU MLP 
-1) Input being a tuple of length layers with values being output size for layer i
-2) Create a stack of linear layers by looping over input, setting output size as the value i
-3) When called, loop over layers and apply x to each
-'''
+#Flax have not yet implemented an MLP, so I have made a simple one here.
 
 class haiku_adapated_linear(nnx.Module):
   def __init__(self,

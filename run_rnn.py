@@ -3,14 +3,12 @@ from disentangled_rnns.library import two_armed_bandits
 from flax import nnx
 import jax.numpy as jnp
 import jax
+from jax.example_libraries import optimizers 
 import optax
 import numpy as np
 import matplotlib.pyplot as plt
 
-from source.model import dis_rnn_model
-
-
-
+from source.model import dis_rnn_model, dis_rnn_cell
 from IPython import embed
 
 
@@ -39,11 +37,11 @@ def categorical_log_likelihood(labels, output_logits):
     return loss
 
 def penalized_categorical_loss(model, x, y):
-    
-    model_output = model(x)
+    _, model_output = model(x) #outupts carry, y, where y contains two features in its last dimension, being the predicted y scores and the penalty
     output_logits = model_output[:, :, :-1]
+    penalty = jnp.sum(model_output[:, :, -1]) 
     loss = (
-        categorical_log_likelihood(y, output_logits) 
+        categorical_log_likelihood(y, output_logits) * penalty
     )
     return loss
 
@@ -68,7 +66,7 @@ metrics_history = {
   'train_loss': []
 }
 
-epochs = 1
+epochs = 15
 x, y = next(dataset_train)
 for epoch in range(epochs):
     model.train()
