@@ -19,7 +19,7 @@ class dis_rnn_cell(nnx.Module):
     def __init__(
         self,
         obs_size = 2, 
-        target_size = 1, 
+        target_size = 2, #from default 1
         latent_size = 5, # from 10
         update_mlp_shape = (5,5,5), #from 10,10,10
         choice_mlp_shae = (5,5,5), #from 10,10,10
@@ -44,7 +44,7 @@ class dis_rnn_cell(nnx.Module):
         initialize_update_mlp_multipliers = initializers.constant(1, dtype=jnp.float32)(key2, (mlp_input_size, latent_size))
         self.update_mlp_multipliers = nnx.Param(initialize_update_mlp_multipliers, dtype=jnp.float32) #equivalent to line 84-88
 
-        initialize_latent_sigmas_unsquashed = initializers.truncated_normal(lower=-3, upper=-3, dtype=jnp.float32)(key3, latent_size,)
+        initialize_latent_sigmas_unsquashed = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key3, latent_size,)
         self.latent_sigmas_unsquashed = nnx.Param(initialize_latent_sigmas_unsquashed) #equivalent to line 91-95
         
         self.latent_sigmas = nnx.Param(2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value), dtype=jnp.float32) #equiavlent to line 96-98
@@ -68,7 +68,7 @@ class dis_rnn_cell(nnx.Module):
         new_latents = jnp.zeros(shape=(prev_latents.shape)) #line 133
 
         for mlp_i in jnp.arange(self._latent_size): #equivalent to line 136-150
-            penalty += kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
+            penalty += 1 * kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
             
             update_mlp_output = MLP(self._update_mlp_shape)(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
 

@@ -19,9 +19,9 @@ environment = two_armed_bandits.EnvironmentBanditsDrift(sigma=0.1)
 dataset_train = two_armed_bandits.create_dataset(
     agent,
     environment,
-    n_steps_per_session=500,
-    n_sessions=50,
-    batch_size=50,
+    n_steps_per_session=200,
+    n_sessions=300,
+    batch_size=300,
 )#returns [timestep, episode, feature]
 
 update_mlp_shape = (5,5,5)
@@ -89,7 +89,7 @@ def train_step(params, opt_state, xs, ys, random_key):
 
 
 
-epochs = 50
+epochs = 5
 random_key = jax.random.PRNGKey(0)
 training_loss = []
 random_key, key1 = jax.random.split(random_key)
