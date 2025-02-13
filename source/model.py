@@ -24,7 +24,7 @@ class dis_rnn_cell(nnx.Module):
         update_mlp_shape = (5,5,5), #from 10,10,10
         choice_mlp_shae = (5,5,5), #from 10,10,10
         activation = jax.nn.relu,
-        rngs = nnx.Rngs,
+        rngs =  nnx.Rngs,
     ):
         self._target_size = target_size
         self._latent_size = latent_size
@@ -34,22 +34,23 @@ class dis_rnn_cell(nnx.Module):
         self._rngs = rngs
 
         mlp_input_size = latent_size + obs_size 
-        key1, key2, key3, key4, key5 = jax.random.split(jax.random.key(42), 5)
+        #key1, key2, key3, key4, key5 = jax.random.split(jax.random.key(42), 5)
+        key = rngs.params()
         
-        initialize_update_mlp_sigmas = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key1, (mlp_input_size, latent_size))
-        update_mlp_sigmas_unsquashed = nnx.Param(initialize_update_mlp_sigmas) #equivalent to lines 75-79
+        initialize_update_mlp_sigmas = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
+        self.update_mlp_sigmas_unsquashed = nnx.Param(initialize_update_mlp_sigmas, dtype=jnp.float32) #equivalent to lines 75-79
 
-        self.update_mlp_sigmas = nnx.Param(2 * jax.nn.sigmoid(update_mlp_sigmas_unsquashed)) #equivalent to line 81-83
+        self.update_mlp_sigmas = nnx.Param(2 * jax.nn.sigmoid(self.update_mlp_sigmas_unsquashed)) #equivalent to line 81-83
 
-        initialize_update_mlp_multipliers = initializers.constant(1, dtype=jnp.float32)(key2, (mlp_input_size, latent_size))
+        initialize_update_mlp_multipliers = initializers.constant(1, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
         self.update_mlp_multipliers = nnx.Param(initialize_update_mlp_multipliers, dtype=jnp.float32) #equivalent to line 84-88
 
-        initialize_latent_sigmas_unsquashed = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key3, latent_size,)
+        initialize_latent_sigmas_unsquashed = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key, latent_size,)
         self.latent_sigmas_unsquashed = nnx.Param(initialize_latent_sigmas_unsquashed) #equivalent to line 91-95
         
         self.latent_sigmas = nnx.Param(2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value), dtype=jnp.float32) #equiavlent to line 96-98
         
-        initialize_latents = initializers.truncated_normal(lower=-1, upper=1, dtype=jnp.float32)(key4, (latent_size,))
+        initialize_latents = initializers.truncated_normal(lower=-1, upper=1, dtype=jnp.float32)(key, (latent_size,))
         self.latent_inits = nnx.Param(initialize_latents)
         
     def __call__(self, observations, prev_latents): 
@@ -62,7 +63,7 @@ class dis_rnn_cell(nnx.Module):
         update_mlp_sigmas = self.update_mlp_sigmas.value #equivalent to line 127
 
         update_mlp_inputs = update_mlp_mus + update_mlp_sigmas * jax.random.normal(
-            jax.random.key(42), update_mlp_mus.shape
+            self._rngs.params(), update_mlp_mus.shape
         ) #equivalent to lines 129-131 (sequences, latent_size + features, latent_size)
 
         new_latents = jnp.zeros(shape=(prev_latents.shape)) #line 133
@@ -79,8 +80,9 @@ class dis_rnn_cell(nnx.Module):
             new_latent = w * update + (1 - w) * prev_latents[:, mlp_i] #GRU Cell without reset gate
             new_latents = new_latents.at[:,mlp_i].set(new_latent) # inplace update in Jax
 
+
         noised_up_latents = new_latents + self.latent_sigmas.value * jax.random.normal(
-            jax.random.key(42), new_latents.shape
+            self._rngs.params(), new_latents.shape
         ) #lines 152-158
             
         penalty += kl_gaussian(new_latents, self.latent_sigmas.value) #line 159
@@ -95,7 +97,7 @@ class dis_rnn_cell(nnx.Module):
 
     def initialize_carry(self, batch_dims):
         mem_shape = (batch_dims, self._latent_size,)
-        h = initializers.ones_init()(jax.random.key(42), mem_shape) * self.latent_inits.value
+        h = initializers.ones_init()(self._rngs.params(), mem_shape) * self.latent_inits.value
         return h
     
     @property
@@ -104,8 +106,8 @@ class dis_rnn_cell(nnx.Module):
 
 
 class dis_rnn_model(nnx.Module):
-    def __init__(self, rngs=nnx.Rngs()):
-        self.cell = dis_rnn_cell()
+    def __init__(self, rngs: nnx.Rngs):
+        self.cell = dis_rnn_cell(rngs=rngs)
     def __call__(self, x):
         carry = self.cell.initialize_carry((x.shape[1]))
         y_s = []

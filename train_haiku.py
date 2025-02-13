@@ -89,7 +89,7 @@ def train_step(params, opt_state, xs, ys, random_key):
 
 
 
-epochs = 5
+epochs = 1000
 random_key = jax.random.PRNGKey(0)
 training_loss = []
 random_key, key1 = jax.random.split(random_key)
