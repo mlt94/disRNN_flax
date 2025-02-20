@@ -34,7 +34,6 @@ class dis_rnn_cell(nnx.Module):
         self._rngs = rngs
 
         mlp_input_size = latent_size + obs_size 
-        #key1, key2, key3, key4, key5 = jax.random.split(jax.random.key(42), 5)
         key = rngs.params()
         
         initialize_update_mlp_sigmas = initializers.truncated_normal(lower=-3, upper=-2, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
@@ -71,11 +70,11 @@ class dis_rnn_cell(nnx.Module):
         for mlp_i in jnp.arange(self._latent_size): #equivalent to line 136-150
             penalty += 1 * kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
             
-            update_mlp_output = MLP(self._update_mlp_shape)(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
+            update_mlp_output = MLP(self._update_mlp_shape, rngs=self._rngs)(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
+            
+            update = haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output)[:,0]
 
-            update = haiku_adapated_linear(1,)(update_mlp_output)[:,0]
-
-            w = jax.nn.sigmoid(haiku_adapated_linear(1)(update_mlp_output))[:,0]
+            w = jax.nn.sigmoid(haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output))[:,0]
 
             new_latent = w * update + (1 - w) * prev_latents[:, mlp_i] #GRU Cell without reset gate
             new_latents = new_latents.at[:,mlp_i].set(new_latent) # inplace update in Jax
@@ -88,8 +87,8 @@ class dis_rnn_cell(nnx.Module):
         penalty += kl_gaussian(new_latents, self.latent_sigmas.value) #line 159
 
 
-        choice_mlp_output = MLP(self._choice_mlp_shape)(noised_up_latents) #166-168
-        y_hat = haiku_adapated_linear(self._target_size)(choice_mlp_output) #170
+        choice_mlp_output = MLP(self._choice_mlp_shape, rngs=self._rngs)(noised_up_latents) #166-168
+        y_hat = haiku_adapated_linear(self._target_size, rngs=self._rngs)(choice_mlp_output) #170
 
         penalty = jnp.expand_dims(penalty, 1)
         output = jnp.concatenate((y_hat, penalty), axis=1)
@@ -116,9 +115,8 @@ class dis_rnn_model(nnx.Module):
             y_s.append(y)
         y = jnp.stack(y_s, axis=0)
 
-        #scan_fn = lambda carry, cell, x: cell(x, carry)
-        #carry, y = nnx.scan(
-        #   scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
-        #)(carry, self.cell, x) 
-        
+        # scan_fn = lambda carry, cell, x: cell(x, carry)
+        # carry, y = nnx.scan(
+        #    scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
+        # )(carry, self.cell, x) 
         return carry, y

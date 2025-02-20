@@ -13,42 +13,53 @@ from flax.nnx.nn import initializers
 class haiku_adapated_linear(nnx.Module):
   def __init__(self,
               output_size: int,
+              rngs = nnx.Rngs,
               ):
     self.input_size = None
     self.output_size = output_size
+    self.rngs = rngs
   def __call__(
       self, inputs: jax.Array
   ):
     input_size = self.input_size = inputs.shape[-1]
     output_size = self.output_size
     dtype = inputs.dtype
+    key = self.rngs.params()
 
-    
     stddev = 1. / np.sqrt(self.input_size)
-    w_init = initializers.truncated_normal(stddev=stddev)(jax.random.key(42), (input_size, output_size))
-    w = nnx.Param(w_init)
-
+    w_init = initializers.truncated_normal(stddev=stddev)(key, (input_size, output_size))
+    w = nnx.Param(w_init, dtype=jnp.float32)
     out = jnp.dot(inputs, w)
-    
-
-    b = initializers.zeros_init()(jax.random.key(42), (output_size))
+    b = initializers.zeros_init()(key, (output_size))
     b = jnp.broadcast_to(b, out.shape)
     out = out + b
     return out
+  
+# x = jnp.ones((300,5))
+# @nnx.jit
+# def train(x):
+#   y = haiku_adapated_linear(1, rngs=nnx.Rngs(0))(x)
+#   return y
+
+# y = train(x)
+# print(y)
+
+
   
 
 class MLP(nnx.Module):
   def __init__(self, 
                output_sizes: Iterable[int], 
-               activation: Callable[[jax.Array], jax.Array] = jax.nn.relu
+               activation: Callable[[jax.Array], jax.Array] = jax.nn.relu,
+               rngs = nnx.Rngs,
                ):
     
-
+    self.rngs = rngs
     self.activation = activation
     layers = []
     output_sizes = tuple(output_sizes)
     for index, output_size in enumerate(output_sizes):
-      layers.append(haiku_adapated_linear(output_size=output_size))
+      layers.append(haiku_adapated_linear(output_size=output_size, rngs = rngs))
     self.layers = tuple(layers)
     self.output_size = output_sizes[-1] if output_sizes else None
 
