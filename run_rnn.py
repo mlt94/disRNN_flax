@@ -46,13 +46,13 @@ def penalized_categorical_loss(model, x, y):
 
 model = dis_rnn_model(rngs=nnx.Rngs(0))
 
-optimizer = nnx.Optimizer(model, optax.adam(1e-3))
+optimizer = nnx.Optimizer(model, optax.adam(1e-3)) #1e-3
 
 
 metrics = nnx.MultiMetric(
   loss=nnx.metrics.Average('loss'),
 )
-#@nnx.jit()
+@nnx.jit
 def train_step(model, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
     grad_fn = nnx.value_and_grad(penalized_categorical_loss)
     loss, grads = grad_fn(model, x, y)
@@ -64,7 +64,7 @@ metrics_history = {
 }
 
 x, y = next(dataset_train)
-epochs = 25000
+epochs = 100
 for epoch in range(1, 1 + epochs):
     model.train()
     train_step(model, optimizer, metrics, x, y)
@@ -74,8 +74,8 @@ for epoch in range(1, 1 + epochs):
         metrics_history[f'train_{metric}'].append(normal_value)
         print(f"{metric}: {normal_value:.2f}") 
     metrics.reset() 
-    break
-#plt.plot(range(1, 1 + epochs), metrics_history["train_loss"])
-#plt.savefig("/home/mlut/disRNN_flax/train_loss.png")
+    
+plt.plot(range(1, 1 + epochs), metrics_history["train_loss"])
+plt.savefig("/home/mlut/disRNN_flax/train_loss.png")
 params = nnx.variables(model, nnx.Param)
 print(params)

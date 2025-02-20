@@ -29,24 +29,12 @@ class haiku_adapated_linear(nnx.Module):
     stddev = 1. / np.sqrt(self.input_size)
     w_init = initializers.truncated_normal(stddev=stddev)(key, (input_size, output_size))
     w = nnx.Param(w_init, dtype=jnp.float32)
-    out = jnp.dot(inputs, w)
+    out = jnp.dot(inputs, w.value)
     b = initializers.zeros_init()(key, (output_size))
     b = jnp.broadcast_to(b, out.shape)
     out = out + b
     return out
   
-# x = jnp.ones((300,5))
-# @nnx.jit
-# def train(x):
-#   y = haiku_adapated_linear(1, rngs=nnx.Rngs(0))(x)
-#   return y
-
-# y = train(x)
-# print(y)
-
-
-  
-
 class MLP(nnx.Module):
   def __init__(self, 
                output_sizes: Iterable[int], 

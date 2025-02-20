@@ -109,14 +109,14 @@ class dis_rnn_model(nnx.Module):
         self.cell = dis_rnn_cell(rngs=rngs)
     def __call__(self, x):
         carry = self.cell.initialize_carry((x.shape[1]))
-        y_s = []
-        for t in range(x.shape[0]):
-            carry, y = self.cell(x[t,:, :], carry)
-            y_s.append(y)
-        y = jnp.stack(y_s, axis=0)
+        # y_s = []
+        # for t in range(x.shape[0]):
+        #     carry, y = self.cell(x[t,:, :], carry)
+        #     y_s.append(y)
+        # y = jnp.stack(y_s, axis=0)
 
-        # scan_fn = lambda carry, cell, x: cell(x, carry)
-        # carry, y = nnx.scan(
-        #    scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
-        # )(carry, self.cell, x) 
+        scan_fn = lambda carry, cell, x: cell(x, carry)
+        carry, y = nnx.scan(
+            scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
+        )(carry, self.cell, x) 
         return carry, y
