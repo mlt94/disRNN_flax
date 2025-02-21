@@ -34,12 +34,12 @@ def categorical_log_likelihood(labels, output_logits):
     loss = -jnp.nansum(masked_log_liks)
     return loss
 
-def penalized_categorical_loss(model, x, y):
+def penalized_categorical_loss(model, x, y, penalty_scale=1e-3):
     _, model_output = model(x) #outupts carry, y, where y contains three features in its last dimension, being the predicted y scores for two classes and the penalty
     output_logits = model_output[:, :, :-1]
     penalty = jnp.sum(model_output[:, :, -1]) 
     loss = (
-        categorical_log_likelihood(y, output_logits) + 1e-3 * penalty #penalty scale
+        categorical_log_likelihood(y, output_logits) + penalty_scale * penalty #penalty scale
     )
     return loss
 
@@ -57,14 +57,16 @@ def train_step(model, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
     grad_fn = nnx.value_and_grad(penalized_categorical_loss)
     loss, grads = grad_fn(model, x, y)
     metrics.update(loss=loss, labels=y)
-    optimizer.update(grads) #calls optax.apply_updates internally
+    clipped_grads = jax_optimizers.clip_grads(grads, 1e10)
+    #jax.debug.print("hello {clipped_grads}", clipped_grads=clipped_grads)
+    optimizer.update(clipped_grads) #calls optax.apply_updates internally
 
 metrics_history = {
   'train_loss': []
 }
 
 x, y = next(dataset_train)
-epochs = 100
+epochs = 1
 for epoch in range(1, 1 + epochs):
     model.train()
     train_step(model, optimizer, metrics, x, y)
@@ -79,3 +81,4 @@ plt.plot(range(1, 1 + epochs), metrics_history["train_loss"])
 plt.savefig("/home/mlut/disRNN_flax/train_loss.png")
 params = nnx.variables(model, nnx.Param)
 print(params)
+
