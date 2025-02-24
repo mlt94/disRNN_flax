@@ -52,7 +52,7 @@ class test_linear(nnx.Module):
 x = jnp.ones((300,5))
 model = test_linear(1, rngs=nnx.Rngs(0))
 optimizer = nnx.Optimizer(model, optax.adam(1e-3)) #this is the culprit!
-''' Linje 40 giver fejlen:
+''' Linje 54 giver fejlen:
 ValueError: Arrays leaves are not supported, at 'value_init': 0.622459352016449'''
 
 @nnx.jit
