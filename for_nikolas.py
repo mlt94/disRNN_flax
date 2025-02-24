@@ -6,7 +6,7 @@ import optax
 import numpy as np
 
 ''' 
-Hej Nicholas,
+Hej Nikolas,
 Jeg har fundet noget i Flax, som jeg er i tvivl om er en bug i deres kode eller om jeg bruger biblioteket forkert. Kunne virkelig godt bruge et par øjne på det hvis du har tid! Håber du nyder Colombia!
 
 Det er en utrolig simpel operation jeg forsøger, som fejler. 
