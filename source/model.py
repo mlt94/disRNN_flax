@@ -38,7 +38,7 @@ class dis_rnn_cell(nnx.Module):
         initialize_update_mlp_sigmas = initializers.truncated_normal(stddev = 1, lower=-3, upper=-2, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
         update_mlp_sigmas_unsquashed = nnx.Param(initialize_update_mlp_sigmas, dtype=jnp.float32) #equivalent to lines 75-79
         
-        self._update_mlp_sigmas = 2 * nnx.sigmoid(update_mlp_sigmas_unsquashed.value) #equivalent to line 81-83
+        self._update_mlp_sigmas = nnx.Param(2 * nnx.sigmoid(update_mlp_sigmas_unsquashed.value)) #equivalent to line 81-83 #should not be a parameter
 
         initialize_update_mlp_multipliers = initializers.constant(1, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
         self.update_mlp_multipliers = nnx.Param(initialize_update_mlp_multipliers, dtype=jnp.float32) #equivalent to line 84-88
@@ -46,7 +46,7 @@ class dis_rnn_cell(nnx.Module):
         initialize_latent_sigmas_unsquashed = initializers.truncated_normal(stddev = 1, lower=-3, upper=-2, dtype=jnp.float32)(key, (latent_size, ))
         self.latent_sigmas_unsquashed = nnx.Param(initialize_latent_sigmas_unsquashed) #equivalent to line 91-95
         
-        self._latent_sigmas = 2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value) #equiavlent to line 96-98
+        self._latent_sigmas = nnx.Param(2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value)) #equiavlent to line 96-98 #should not be a parameter
                 
         initialize_latents = initializers.truncated_normal(stddev = 1, lower=-1, upper=1, dtype=jnp.float32)(key, (latent_size,))
         self.latent_inits = nnx.Param(initialize_latents)
@@ -107,14 +107,14 @@ class dis_rnn_model(nnx.Module):
         self.cell = dis_rnn_cell(rngs=rngs)
     def __call__(self, x):
         carry = self.cell.initialize_carry((x.shape[1]))
-        y_s = []
-        for t in range(x.shape[0]):
-            carry, y = self.cell(x[t,:, :], carry)
-            y_s.append(y)
-        y = jnp.stack(y_s, axis=0)
+        # y_s = []
+        # for t in range(x.shape[0]):
+        #     carry, y = self.cell(x[t,:, :], carry)
+        #     y_s.append(y)
+        # y = jnp.stack(y_s, axis=0)
 
-        # scan_fn = lambda carry, cell, x: cell(x, carry)
-        # carry, y = nnx.scan(
-        #     scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
-        # )(carry, self.cell, x) 
+        scan_fn = lambda carry, cell, x: cell(x, carry)
+        carry, y = nnx.scan(
+            scan_fn, in_axes=(nnx.Carry, None, 0), out_axes=(nnx.Carry, 0)
+        )(carry, self.cell, x) 
         return carry, y
