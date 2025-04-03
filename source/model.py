@@ -38,7 +38,7 @@ class dis_rnn_cell(nnx.Module):
         initialize_update_mlp_sigmas = initializers.truncated_normal(stddev = 1, lower=-3, upper=-2, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
         update_mlp_sigmas_unsquashed = nnx.Param(initialize_update_mlp_sigmas, dtype=jnp.float32) #equivalent to lines 75-79
         
-        self._update_mlp_sigmas = nnx.Param(2 * nnx.sigmoid(update_mlp_sigmas_unsquashed.value)) #equivalent to line 81-83 #should not be a parameter
+        self._update_mlp_sigmas = nnx.Variable(2 * nnx.sigmoid(update_mlp_sigmas_unsquashed.value)) #equivalent to line 81-83 
 
         initialize_update_mlp_multipliers = initializers.constant(1, dtype=jnp.float32)(key, (mlp_input_size, latent_size))
         self.update_mlp_multipliers = nnx.Param(initialize_update_mlp_multipliers, dtype=jnp.float32) #equivalent to line 84-88
@@ -46,10 +46,13 @@ class dis_rnn_cell(nnx.Module):
         initialize_latent_sigmas_unsquashed = initializers.truncated_normal(stddev = 1, lower=-3, upper=-2, dtype=jnp.float32)(key, (latent_size, ))
         self.latent_sigmas_unsquashed = nnx.Param(initialize_latent_sigmas_unsquashed) #equivalent to line 91-95
         
-        self._latent_sigmas = nnx.Param(2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value)) #equiavlent to line 96-98 #should not be a parameter
+        self._latent_sigmas = nnx.Variable(2 * nnx.sigmoid(self.latent_sigmas_unsquashed.value)) #equiavlent to line 96-98 
                 
         initialize_latents = initializers.truncated_normal(stddev = 1, lower=-1, upper=1, dtype=jnp.float32)(key, (latent_size,))
         self.latent_inits = nnx.Param(initialize_latents)
+
+        self.mlp = MLP(self._update_mlp_shape, rngs=self._rngs)
+        self.haiku_adapated_linear = haiku_adapated_linear(1, rngs=self._rngs)
         
     def __call__(self, observations, prev_latents): 
         penalty = 0 
@@ -70,11 +73,11 @@ class dis_rnn_cell(nnx.Module):
         for mlp_i in jnp.arange(self._latent_size): #equivalent to line 136-150
             penalty += 1 * kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
             
-            update_mlp_output = MLP(self._update_mlp_shape, rngs=self._rngs)(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
+            update_mlp_output = self.mlp(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
             
-            update = haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output)[:,0]
+            update = self.haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output)[:,0]
 
-            w = jax.nn.sigmoid(haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output))[:,0]
+            w = jax.nn.sigmoid(self.haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output))[:,0]
 
             new_latent = w * update + (1 - w) * prev_latents[:, mlp_i] #GRU Cell without reset gate
             new_latents = new_latents.at[:,mlp_i].set(new_latent) # inplace update in Jax
