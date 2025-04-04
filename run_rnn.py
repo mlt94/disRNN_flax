@@ -58,7 +58,6 @@ def train_step(model, optimizer:nnx.Optimizer, metrics:nnx.MultiMetric, x, y):
     loss, grads = grad_fn(model, x, y)
     metrics.update(loss=loss, labels=y)
     clipped_grads = jax_optimizers.clip_grads(grads, 1e10)
-    #jax.debug.print("hello {clipped_grads}", clipped_grads=clipped_grads)
     optimizer.update(clipped_grads) #calls optax.apply_updates internally
 
 metrics_history = {
@@ -66,7 +65,7 @@ metrics_history = {
 }
 
 x, y = next(dataset_train)
-epochs = 10
+epochs = 100
 for epoch in range(1, 1 + epochs):
     model.train()
     train_step(model, optimizer, metrics, x, y)

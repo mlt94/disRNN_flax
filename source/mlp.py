@@ -40,7 +40,6 @@ class MLP_choice(nnx.Module):
     self.rngs = rngs
     self.mlp_linear1_choice = nnx.Linear(in_features=5, out_features=5, rngs=rngs)
     self.mlp_linear2_choice = nnx.Linear(in_features=5, out_features=5, rngs=rngs)
-    self.mlp_linear3_choice = nnx.Linear(in_features=5, out_features=5, rngs=rngs)
 
   def __call__(
       self,
@@ -49,6 +48,4 @@ class MLP_choice(nnx.Module):
     out = self.mlp_linear1_choice(inputs)
     out = jax.nn.relu(out)
     out = self.mlp_linear2_choice(out)
-    out = jax.nn.relu(out)
-    out = self.mlp_linear3_choice(out)
     return out
