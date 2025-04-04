@@ -7,7 +7,7 @@ from flax.nnx.nn.recurrent import RNN
 from flax.nnx.nn import initializers
 default_kernel_init = initializers.lecun_normal()
 
-from source.mlp import MLP, haiku_adapated_linear
+from source.mlp import MLP_loop, MLP_choice
 
 from IPython import embed
 
@@ -21,14 +21,14 @@ class dis_rnn_cell(nnx.Module):
         target_size = 2, #from default 1
         latent_size = 5, # from 10
         update_mlp_shape = (5,5,5), #from 10,10,10
-        choice_mlp_shae = (5,5,5), #from 10,10,10
+        choice_mlp_shape = (5,5,5), #from 10,10,10
         activation = jax.nn.relu,
         rngs =  nnx.Rngs,
     ):
         self._target_size = target_size
         self._latent_size = latent_size
         self._update_mlp_shape = update_mlp_shape
-        self._choice_mlp_shape = choice_mlp_shae
+        self._choice_mlp_shape = choice_mlp_shape
         self._activation = activation
         self._rngs = rngs
 
@@ -51,9 +51,11 @@ class dis_rnn_cell(nnx.Module):
         initialize_latents = initializers.truncated_normal(stddev = 1, lower=-1, upper=1, dtype=jnp.float32)(key, (latent_size,))
         self.latent_inits = nnx.Param(initialize_latents)
 
-        self.mlp = MLP(self._update_mlp_shape, rngs=nnx.Rngs(0))
-        self.linear1 = nnx.Linear(5, 1, rngs=nnx.Rngs(0))
-        self.linear2 = nnx.Linear(5, 1, rngs=nnx.Rngs(0))
+        self.mlp_loop = MLP_loop(rngs=nnx.Rngs(0))
+        self.mlp_choice = MLP_choice(rngs=nnx.Rngs(0))
+        self.linear1 = nnx.Linear(self._latent_size, 1, rngs=self._rngs)
+        self.linear2 = nnx.Linear(self._latent_size, 1, rngs=self._rngs)
+        self.linear3 = nnx.Linear(in_features=self._latent_size, out_features=self._target_size, rngs=self._rngs)
         
     def __call__(self, observations, prev_latents): 
         penalty = 0 
@@ -74,7 +76,7 @@ class dis_rnn_cell(nnx.Module):
         for mlp_i in jnp.arange(self._latent_size): #equivalent to line 136-150
             penalty += 1 * kl_gaussian(update_mlp_mus[:,:, mlp_i], update_mlp_sigmas[:, mlp_i])
             
-            update_mlp_output = self.mlp(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
+            update_mlp_output = self.mlp_loop(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
             
             update = self.linear1(update_mlp_output)[:,0]
 
@@ -89,8 +91,9 @@ class dis_rnn_cell(nnx.Module):
             
         penalty += kl_gaussian(new_latents, self._latent_sigmas.value) #line 159
 
-        choice_mlp_output = MLP(self._choice_mlp_shape, rngs=self._rngs)(noised_up_latents) #166-168
-        y_hat = haiku_adapated_linear(self._target_size, rngs=self._rngs)(choice_mlp_output) #170
+        choice_mlp_output = self.mlp_choice(noised_up_latents) #166-168
+        #y_hat = haiku_adapated_linear(self._target_size, rngs=self._rngs)(choice_mlp_output) #170
+        y_hat = self.linear3(choice_mlp_output) #170
 
         penalty = jnp.expand_dims(penalty, 1)
         output = jnp.concatenate((y_hat, penalty), axis=1)
