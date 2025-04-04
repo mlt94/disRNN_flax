@@ -51,8 +51,9 @@ class dis_rnn_cell(nnx.Module):
         initialize_latents = initializers.truncated_normal(stddev = 1, lower=-1, upper=1, dtype=jnp.float32)(key, (latent_size,))
         self.latent_inits = nnx.Param(initialize_latents)
 
-        self.mlp = MLP(self._update_mlp_shape, rngs=self._rngs)
-        self.haiku_adapated_linear = haiku_adapated_linear(1, rngs=self._rngs)
+        self.mlp = MLP(self._update_mlp_shape, rngs=nnx.Rngs(0))
+        self.linear1 = nnx.Linear(5, 1, rngs=nnx.Rngs(0))
+        self.linear2 = nnx.Linear(5, 1, rngs=nnx.Rngs(0))
         
     def __call__(self, observations, prev_latents): 
         penalty = 0 
@@ -75,9 +76,9 @@ class dis_rnn_cell(nnx.Module):
             
             update_mlp_output = self.mlp(update_mlp_inputs[:,:,mlp_i]) #outputs (sequences, latent_size)
             
-            update = self.haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output)[:,0]
+            update = self.linear1(update_mlp_output)[:,0]
 
-            w = jax.nn.sigmoid(self.haiku_adapated_linear(1, rngs=self._rngs)(update_mlp_output))[:,0]
+            w = jax.nn.sigmoid(self.linear2(update_mlp_output))[:,0]
 
             new_latent = w * update + (1 - w) * prev_latents[:, mlp_i] #GRU Cell without reset gate
             new_latents = new_latents.at[:,mlp_i].set(new_latent) # inplace update in Jax

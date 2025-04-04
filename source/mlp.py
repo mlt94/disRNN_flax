@@ -62,5 +62,3 @@ class MLP(nnx.Module):
       out = layer(out)
       out = self.activation(out)
     return out
-
-
