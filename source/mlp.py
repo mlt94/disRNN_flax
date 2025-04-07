@@ -38,8 +38,8 @@ class MLP_choice(nnx.Module):
               ):
     
     self.rngs = rngs
-    self.mlp_linear1_choice = nnx.Linear(in_features=5, out_features=5, rngs=rngs)
-    self.mlp_linear2_choice = nnx.Linear(in_features=5, out_features=5, rngs=rngs)
+    self.mlp_linear1_choice = nnx.Linear(in_features=5, out_features=2, rngs=rngs)
+    self.mlp_linear2_choice = nnx.Linear(in_features=2, out_features=2, rngs=rngs)
 
   def __call__(
       self,

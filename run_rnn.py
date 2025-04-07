@@ -65,7 +65,7 @@ metrics_history = {
 }
 
 x, y = next(dataset_train)
-epochs = 100
+epochs = 5000
 for epoch in range(1, 1 + epochs):
     model.train()
     train_step(model, optimizer, metrics, x, y)
