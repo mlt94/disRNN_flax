@@ -9,6 +9,8 @@ default_kernel_init = initializers.lecun_normal()
 
 from source.mlp import MLP_loop, MLP_choice
 
+#When I have added "equiavlent to xxx" next to a line of code it indicates on which lines to find the comparable DeepMind Haiku implementation in disentangled_rnns/library/disrnn.py
+
 from IPython import embed
 
 def kl_gaussian(mean, var):

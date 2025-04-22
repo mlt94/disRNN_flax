@@ -9,6 +9,8 @@ Note the following
 - The Flax documentation is still very sparse, so at times, the implementation may not be fully native to Flax; will update as new examples and documentation come along
 - I have only worked on the Q-learning dataset
 
+
+
 You can use `train_haiku.py` to run the model that was trained by the original authors, though this file is only a minimum viable implementation that I used for comparision. Use `example.py` in the original repo for the true original implementation.
 
 # Installation

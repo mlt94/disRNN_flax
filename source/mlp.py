@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterable
 
 from flax.nnx.nn import initializers
 
-#Flax have not yet implemented an MLP, so I have made a simple one here.
+#Flax have not yet implemented an MLP, so I have made a simple one here. Next up on my to-do list is the making it all scalable with regards to shape inference
   
 class MLP_loop(nnx.Module):
   def __init__(self, 
