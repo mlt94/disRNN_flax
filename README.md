@@ -9,7 +9,7 @@ Note the following
 - The Flax documentation is still very sparse, so at times, the implementation may not be fully native to Flax; will update as new examples and documentation come along
 - I have only worked on the Q-learning dataset
 
-
+One thing I am exploring currently is how to make the model less computationally expensive. It was originally trained on Google's TPU, for which training still lasted hours, so training on my institutions limited GPUs is quite inefficint.
 
 You can use `train_haiku.py` to run the model that was trained by the original authors, though this file is only a minimum viable implementation that I used for comparision. Use `example.py` in the original repo for the true original implementation.
 
